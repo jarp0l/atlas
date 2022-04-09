@@ -114,8 +114,27 @@ function renderBackground(atlas){
 
 		backgroundContext.closePath();
 
-		backgroundContext.strokeStyle = "rgba(255, 255, 255, 0.8)";
+		var bgStrokeStyle;
+		switch (atlas[i].diff) {
+			case "add":
+				bgStrokeStyle = "rgba(0, 255, 0, 1)";
+				backgroundContext.lineWidth = 2;
+				break;
+			case "edit":
+				bgStrokeStyle = "rgba(255, 255, 0, 1)";
+				backgroundContext.lineWidth = 2;
+				break;
+			case "delete":
+				bgStrokeStyle = "rgba(255, 0, 0, 1)";
+				backgroundContext.lineWidth = 2;
+				break;
+			default:
+				bgStrokeStyle = "rgba(255, 255, 255, 0.8)";
+				break;
+		}
+		backgroundContext.strokeStyle = bgStrokeStyle;
 		backgroundContext.stroke();
+		backgroundContext.lineWidth = 1;
 	}
 }
 
@@ -237,6 +256,7 @@ function initView(){
 		} else {
 			wrapper.className += " listHidden";
 		}
+		updateHovering();
 		applyView();
 		render();
 		updateLines();
@@ -321,12 +341,20 @@ function initView(){
 	}
 
 	function updateHovering(e, tapped){
+		var coordsWrapper = document.getElementById("coordsWrapper");
+		if (entriesListShown) {
+			coordsWrapper.className = "uncollapsed"
+		} else {
+			coordsWrapper.className = "collapsed"
+		}
 		
 		if(!dragging && (!fixed || tapped)){
 			var pos = [
 				 (e.clientX - (container.clientWidth/2 - innerContainer.clientWidth/2 + zoomOrigin[0] + container.offsetLeft))/zoom
 				,(e.clientY - (container.clientHeight/2 - innerContainer.clientHeight/2 + zoomOrigin[1] + container.offsetTop))/zoom
 			];
+			var coords_p = document.getElementById("coords_p");
+			coords_p.innerText = Math.ceil(pos[0]) + ", " + Math.ceil(pos[1]);
 
 			if(pos[0] <= 2200 && pos[0] >= -100 && pos[0] <= 2200 && pos[0] >= -100){
 				var newHovered = [];
@@ -394,6 +422,7 @@ function initView(){
 					   value.name.toLowerCase().indexOf(filter) !== -1
 					|| value.description.toLowerCase().indexOf(filter) !== -1
 					|| value.subreddit && value.subreddit.toLowerCase().indexOf(filter) !== -1
+					|| value.id === filter
 				);
 			});
 			document.getElementById("atlasSize").innerHTML = "Found "+sortedAtlas.length+" entries.";
@@ -553,6 +582,7 @@ function initView(){
 					zoom = 4;
 					renderBackground(atlas);
 					applyView();
+					updateHovering();
 					
 					zoomOrigin = [
 						 innerContainer.clientWidth/2  - this.entry.center[0]* zoom// + container.offsetLeft
@@ -691,7 +721,19 @@ function initView(){
 
 			context.globalCompositeOperation = "source-over";
 
-			context.strokeStyle = "rgba(0, 0, 0, 1)";
+			var hoverStrokeStyle;
+			switch (hovered[i].diff) {
+				case "add":
+					hoverStrokeStyle = "rgba(0, 155, 0, 1)";
+					break;
+				case "edit":
+					hoverStrokeStyle = "rgba(155, 155, 0, 1)";
+					break;
+				default:
+					hoverStrokeStyle = "rgba(0, 0, 0, 1)";
+					break;
+			}
+			context.strokeStyle = hoverStrokeStyle;
 			//context.lineWidth = zoom;
 			context.stroke();
 		}
@@ -729,7 +771,7 @@ function initView(){
 				,e.touches[0].clientY
 			];
 		}
-	});
+	},{passive: true} );
 
 	container.addEventListener("mouseup", function(e){
 		if(Math.abs(lastPos[0] - e.clientX) + Math.abs(lastPos[1] - e.clientY) <= 4){
@@ -776,6 +818,7 @@ function initView(){
 			entriesListShown = false;
 			wrapper.className += " listHidden";
 		}
+		updateHovering();
 
 		viewportWidth = document.documentElement.clientWidth;
 		

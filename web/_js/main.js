@@ -137,6 +137,55 @@ async function init(){
 		if(initOverlap){
 			initOverlap();
 		}
+	} else if(mode.startsWith("diff")){
+		wrapper.className = wrapper.className.replace(/ drawMode/g, "");
+		try {
+			let liveResp = await fetch("https://place-atlas.stefanocoding.me/atlas.json");
+			let liveJson = await liveResp.json();
+			let liveAtlasReduced = liveJson.reduce(function(a, c) {
+				a[c.id] = c;
+				return a;
+			},{});
+			// Mark added/edited entries
+			atlas = atlas.map(function(entry) {
+				if(liveAtlasReduced[entry.id] === undefined){
+					entry.diff = "add";
+				}else if(JSON.stringify(entry) !== JSON.stringify(liveAtlasReduced[entry.id])){
+					entry.diff = "edit";
+				}
+				return entry;
+			});
+
+			// Mark removed entries
+			let atlasReduced = atlas.reduce(function(a, c) {
+				a[c.id] = c;
+				return a;
+			},{});
+			let removedEntries = liveJson.map(function(entry) {
+				if(atlasReduced[entry.id] === undefined){
+					entry.diff = "delete";
+				}
+				return entry;
+			});
+			atlas.push(...removedEntries)
+
+			if(mode.includes("only")){
+				atlas = atlas.filter(function(entry) {
+					return typeof entry.diff == "string"
+				});
+			}
+
+			//TEMP FOR TIME TRAVEL
+			atlasBackup = atlas;
+		} catch (error) {
+			console.log("Diff mode failed to load, reverting to normal view - " + error);
+		} finally {
+			if(initOverlap && mode.includes("overlap")){
+				initOverlap();
+			} else {
+				initView();
+			}
+		}
 	}
 	
 	function changeOverlapMode(){
@@ -164,7 +213,7 @@ async function init(){
 
 	const toggleMode = document.getElementById("toggleMode");
 	toggleMode.onclick = changeOverlapMode;
-	toggleMode.innerHTML = modeMap[mode];
+	toggleMode.innerHTML = modeMap[mode] || "Overlap";
 
 	document.getElementById("loading").style.display = "none";
 
@@ -296,7 +345,7 @@ async function init(){
 		applyZoom(x, y, zoom);
 
 		e.preventDefault();
-	});
+	}, {passive: true});
 
 	/*function setDesiredZoom(x, y, target){
 		zoom = (zoom*2 + target)/3;
@@ -325,7 +374,7 @@ async function init(){
 
 		touchstart(e);
 
-	});
+	},	{passive: true});
 
 	function mousedown(x, y){
 		lastPosition = [x, y];
